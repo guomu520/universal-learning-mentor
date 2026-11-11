@@ -81,10 +81,11 @@ def check_prompt():
 
 
 # ---------- 2. 真实输出验收 ----------
-def parse_transcript():
-    if not os.path.exists(TRANSCRIPT):
+def parse_transcript(path=None):
+    p = path or TRANSCRIPT
+    if not os.path.exists(p):
         return []
-    raw = open(TRANSCRIPT, encoding='utf-8').read()
+    raw = open(p, encoding='utf-8').read()
     pattern = r'###\s*T(\d+)\s*\|\s*stage=(\S+)[^\n]*\n+```text\n(.*?)\n```'
     return [(m.group(1), m.group(2), m.group(3)) for m in
             re.finditer(pattern, raw, re.S)]
@@ -102,8 +103,8 @@ def strip_blocks(s):
     return s
 
 
-def check_transcript():
-    turns = parse_transcript()
+def check_transcript(path=None):
+    turns = parse_transcript(path)
     check('transcript 可解析且覆盖 3 个阶段', len(turns) >= 4,
           '解析到 %d 段' % len(turns))
     for tid, stage, out in turns:
@@ -217,12 +218,14 @@ def check_examples():
 
 def main():
     args = sys.argv[1:]
+    tpath = next((a.split('=', 1)[1] for a in args
+                  if a.startswith('--transcript=')), None)
     if '--transcript-only' not in args:
         check_prompt()
         check_dist()
         check_examples()
     if '--prompt-only' not in args:
-        check_transcript()
+        check_transcript(tpath)
 
     passed = sum(1 for _, ok, _ in results if ok)
     failed = [(l, d) for l, ok, d in results if not ok]
