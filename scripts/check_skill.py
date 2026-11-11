@@ -64,6 +64,13 @@ def check_prompt():
         '隐私约定': '不写姓名',
         '纯网页降级': '完全跳过本节',
         '状态字段模板': '日课卡.example.md',
+        '不显示步数': '不显示任何进度数字或步数标记',
+        '照着点操作步': '照着点',
+        '围栏才不计字数': '只有用 `>` 引用块',
+        '闭环锚到任意一句话': '回钩锚在',
+        '结业判据改为自主重开': '断更后自己回来',
+        '不预判用户失败': '不预判用户会失败',
+        '禁占位符': '不出现任何占位符',
     }
     for label, needle in rules.items():
         check('硬规则 · ' + label, needle in text)
@@ -75,6 +82,10 @@ def check_prompt():
         '不让用户自己保存卡': '让用户复制保存',
         '开场白不再一次两问': '你最近最想学的一项技能是什么？它主要是',
         '不再依赖用户主动想起': '不依赖小白主动想起你',
+        '不再要求用户保存贴回': '请让用户把这张卡复制保存',
+        '不再强制显示进度标记': '每轮末尾标「信息 n/3」',
+        '结业不再关门': '不用再来找我',
+        '不再预判用户放弃': '下载注册超过 2 分钟你就会放弃',
     }
     for label, bad in conflicts.items():
         check('无冲突回归 · ' + label, bad not in text)
@@ -99,7 +110,7 @@ def strip_blocks(s):
     """去掉启动模板与日课卡（不计入字数预算）。"""
     s = re.sub(r'```.*?```', '', s, flags=re.S)
     s = re.sub(r'>.*?(?=\n\n|\Z)', '', s, flags=re.S)
-    s = re.sub(r'^- (今天只做|交付物|下次回来)：.*$', '', s, flags=re.M)
+    s = re.sub(r'^- (今天只做|做出来的是|明天这个点|下次回来|交付物)：.*$', '', s, flags=re.M)
     return s
 
 
@@ -116,21 +127,30 @@ def check_transcript(path=None):
         if stage == '摸底':
             check('T%s 只问一个问题' % tid, out.count('？') == 1,
                   '问号数=%d' % out.count('？'))
-            check('T%s 有进度标记' % tid, bool(re.search(r'信息 \d/3', out)))
+            check('T%s 不显示步数标记' % tid, not re.search(r'信息 \d/3', out))
             check('T%s 字数 ≤80' % tid, n <= 80, '实际 %d 字' % n)
             check('T%s 不推荐工具' % tid,
                   not re.search(r'豆包|Kimi|ChatGPT|Python|课程', out))
         elif stage == '处方':
-            check('T%s 有画像' % tid, '观察' in out or '属于' in out)
+            check('T%s 有画像' % tid,
+                  any(k in out for k in ['观察', '属于', '画像', '每天只有', '只想少烦']))
             check('T%s 至少 2 个陷阱' % tid,
-                  len(re.findall(r'[①②]|不要碰', out)) >= 2)
-            check('T%s 有减法声明' % tid, '不用准备' in out or '为什么' in out)
-            check('T%s 有可复制启动模板' % tid, '```' in out or '>' in out)
+                  len(re.findall(r'[①②]|不要碰|^\s*-\s', out, re.M)) >= 2)
+            check('T%s 有减法声明' % tid,
+                  any(k in out for k in ['不用准备', '为什么', '减法声明', '今天不装', '现在用的就够']))
+            check('T%s 有可复制启动模板' % tid,
+                  any(k in out for k in ['```', '>', '贴给', '照着点']))
             check('T%s 有日课卡' % tid, '日课卡' in out)
             check('T%s 只提 1 个工具' % tid,
                   len(set(re.findall(r'豆包|Kimi|ChatGPT|讯飞|微信', out))) <= 1)
             check('T%s 叙述字数 ≤260' % tid, n <= 260, '实际 %d 字' % n)
+            check('T%s 无占位符泄漏' % tid,
+                  not re.search(r'<[^>]{1,20}>|\[[^\]]{1,20}\]|…', out))
+            check('T%s 有照着点操作步' % tid, '照着点' in out)
+            check('T%s 日课卡有回钩' % tid, '明天这个点' in out)
         elif stage == '复盘':
+            if '你已经会自己' in out:
+                check('T%s 结业不关门（给重启暗号）' % tid, '我断了' in out)
             check('T%s 字数 ≤120' % tid, n <= 120, '实际 %d 字' % n)
             check('T%s 不追问原因' % tid, '为什么' not in out)
             check('T%s 给的是动作' % tid, len(out.strip()) > 5)
@@ -172,9 +192,22 @@ def check_dist():
     # 口径必须是「用户整段粘进去的真实字符数」：豆包按框内字符计数，
     # 换行、空格、标点都算。用去空白的 visible_len 会虚低约 37 字，导致实测超限却判通过。
     actual_len = len(mini.strip())
-    check('prompt-mini 真实粘贴长度 ≤600 字', actual_len <= 600,
+    check('prompt-mini 真实粘贴长度 ≤1000 字', actual_len <= 1000,
           '实际 %d 字（含换行/空格/标点）' % actual_len)
-    check('prompt-mini 无文件头（整段即协议）', mini.lstrip().startswith('你是「通用学习教练」'))
+    check('prompt-mini 无文件头（整段即协议）',
+          mini.lstrip().startswith('你是「学习教练」'))
+    # v3.1 的 600 字版丢掉这些仲裁后行为变形（独立评审 3/10），v4.0 起必须常驻
+    for label, needle in {
+        '规则优先级仲裁': '仲裁',
+        '焦虑与跑题区分': '不可混用',
+        '介质兜底': '手机自带备忘录',
+        '照着点操作步': '照着点',
+        '占位符禁令': '禁占位符',
+        '任意内容触发复盘': '任何内容都算回来',
+        '不用保存时间锚': '不用保存任何东西',
+        '结业重启暗号': '我断了',
+    }.items():
+        check('prompt-mini 补回关键规则 · ' + label, needle in mini)
     for rule in ['最高优先级', '摸底', '处方', '日课卡', '复盘', '开场白', '结业']:
         check('prompt-mini 保留硬规则 · ' + rule, rule in mini)
     for path in ['~/.agents/skills/', '~/.claude/skills/', '.cursor/rules', '最大输出字数']:
@@ -192,12 +225,16 @@ def check_examples():
         if not os.path.exists(path):
             continue
         text = open(path, encoding='utf-8').read()
-        check(name + ' 有进度标记', bool(re.search(r'信息 \d/3', text)))
+        check(name + ' 不显示步数标记', not re.search(r'信息 \d/3', text))
         check(name + ' 处方附日课卡', '日课卡' in text)
         check(name + ' 有可复制启动模板', '内容如下' in text or '发给' in text)
-        check(name + ' 有结业', '结业' in text or '不用再来找我' in text)
+        check(name + ' 有结业', '结业' in text or '你已经会自己' in text)
+        check(name + ' 日课卡有回钩', '明天这个点' in text)
+        check(name + ' 有照着点操作步', '照着点' in text)
+        check(name + ' 无黑话「交付物」', '交付物' not in text)
+        check(name + ' 结业不关门', '不用再来找我' not in text)
         for bad in ['遇到卡壳是好事', '或「Kimi」', '第一步、第二步',
-                    '日课卡照旧', '日课卡不变']:
+                    '日课卡照旧', '日课卡不变', '信息 0/3']:
             check(name + ' 无旧协议残留 · ' + bad, bad not in text)
 
         # 一次一问：每段教练发言问号 ≤1（排除引用块、代码块、注释）
