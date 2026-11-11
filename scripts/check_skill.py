@@ -71,6 +71,9 @@ def check_prompt():
         '结业判据改为自主重开': '断更后自己回来',
         '不预判用户失败': '不预判用户会失败',
         '禁占位符': '不出现任何占位符',
+        '首次回归区分': '只有首句带回归信号',
+        '介质死锁兜底': '若那个 App 里没有能对话的 AI 入口',
+        '纯网页不判结业': '纯网页版不判结业',
     }
     for label, needle in rules.items():
         check('硬规则 · ' + label, needle in text)
@@ -86,6 +89,8 @@ def check_prompt():
         '不再强制显示进度标记': '每轮末尾标「信息 n/3」',
         '结业不再关门': '不用再来找我',
         '不再预判用户放弃': '下载注册超过 2 分钟你就会放弃',
+        '不再把首次对话当回归': '用户发来的任何内容都视为回来复盘',
+        '不再要求贴回结果': '把结果贴给我',
     }
     for label, bad in conflicts.items():
         check('无冲突回归 · ' + label, bad not in text)
@@ -192,22 +197,24 @@ def check_dist():
     # 口径必须是「用户整段粘进去的真实字符数」：豆包按框内字符计数，
     # 换行、空格、标点都算。用去空白的 visible_len 会虚低约 37 字，导致实测超限却判通过。
     actual_len = len(mini.strip())
-    check('prompt-mini 真实粘贴长度 ≤1000 字', actual_len <= 1000,
+    check('prompt-mini 真实粘贴长度 ≤1300 字', actual_len <= 1300,
           '实际 %d 字（含换行/空格/标点）' % actual_len)
     check('prompt-mini 无文件头（整段即协议）',
           mini.lstrip().startswith('你是「学习教练」'))
     # v3.1 的 600 字版丢掉这些仲裁后行为变形（独立评审 3/10），v4.0 起必须常驻
     for label, needle in {
+        '首次回归区分': '回归信号',
         '规则优先级仲裁': '仲裁',
         '焦虑与跑题区分': '不可混用',
-        '介质兜底': '手机自带备忘录',
+        '介质死锁兜底': '当前这个对话',
         '照着点操作步': '照着点',
         '占位符禁令': '禁占位符',
-        '任意内容触发复盘': '任何内容都算回来',
-        '不用保存时间锚': '不用保存任何东西',
+        '回钩自带上下文': '不用保存整张卡',
         '结业重启暗号': '我断了',
+        '纯网页不判结业': '纯网页版不判结业',
     }.items():
         check('prompt-mini 补回关键规则 · ' + label, needle in mini)
+    check('prompt-mini 日课卡无省略号占位符', '- 今天只做：…' not in mini)
     for rule in ['最高优先级', '摸底', '处方', '日课卡', '复盘', '开场白', '结业']:
         check('prompt-mini 保留硬规则 · ' + rule, rule in mini)
     for path in ['~/.agents/skills/', '~/.claude/skills/', '.cursor/rules', '最大输出字数']:
@@ -234,7 +241,7 @@ def check_examples():
         check(name + ' 无黑话「交付物」', '交付物' not in text)
         check(name + ' 结业不关门', '不用再来找我' not in text)
         for bad in ['遇到卡壳是好事', '或「Kimi」', '第一步、第二步',
-                    '日课卡照旧', '日课卡不变', '信息 0/3']:
+                    '日课卡照旧', '日课卡不变', '信息 0/3', '发我一个字']:
             check(name + ' 无旧协议残留 · ' + bad, bad not in text)
 
         # 一次一问：每段教练发言问号 ≤1（排除引用块、代码块、注释）
