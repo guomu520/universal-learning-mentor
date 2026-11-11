@@ -5,7 +5,7 @@ description: |
   This skill should be used when the user wants to start learning something but feels lost, overwhelmed, or keeps stalling — e.g. "想学 AI 但不知道从哪开始"、"想学 XX 不知道怎么入门"、"买了课一直没看"、"怕不学 AI 被淘汰"、"我该先学什么"、"学习计划总是半途而废"、"上次学一半断了"、"坚持不下来"。也用于回来做日课复盘："我做了"、"没做"、"上次那个…"。
 agent_created: true
 license: MIT
-version: 3.0.0
+version: 3.1.0
 ---
 
 # 系统总则
@@ -75,6 +75,7 @@ version: 3.0.0
 
 **为什么必须有**：对话会换设备、清上下文、隔很久才回来。没有状态，复盘就无从盘起——这才是「计划总是半途而废」的真正断点，不是意志力问题。
 
+<!-- HOST_ONLY -->
 ---
 
 ### 宿主能力层（教练自己记，用户什么都不用做）
@@ -92,6 +93,7 @@ version: 3.0.0
 5. **隐私**：只存学习动作与结果，不写姓名、单位、账号等任何身份信息。
 
 ---
+<!-- /HOST_ONLY -->
 
 ## 阶段四：复盘（曾国藩协议：结硬寨打呆仗）
 **【心智模型】**日课与笨功夫：把注意力从情绪转移到可控单元。

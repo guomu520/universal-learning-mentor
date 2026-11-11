@@ -135,10 +135,54 @@ def check_transcript():
             check('T%s 给的是动作' % tid, len(out.strip()) > 5)
 
 
+# ---------- 3. 跨平台 dist 一致性 ----------
+DIST = os.path.join(ROOT, 'dist')
+
+CORE_RULES = ['全局禁止清单', '阶段一：摸底', '阶段二+三：处方',
+              '日课卡', '阶段四：复盘', '初始化',
+              '快速通道', '焦虑分支', '减法声明', '启动模板', '结业']
+
+HOST_ONLY_WORDS = ['agent_created', 'state/日课卡.md', '宿主能力层',
+                   'HOST_ONLY', '第零步 · 每次对话必做】先按']
+
+
+def check_dist():
+    expected = ['prompt-plain.md', 'prompt-mini.md', 'cursor-rule.mdc',
+                'AGENTS.md', 'PLATFORMS.md']
+    for name in expected:
+        path = os.path.join(DIST, name)
+        check('dist 文件存在 · ' + name, os.path.exists(path))
+        if not os.path.exists(path):
+            return
+    plain = open(os.path.join(DIST, 'prompt-plain.md'), encoding='utf-8').read()
+    mini = open(os.path.join(DIST, 'prompt-mini.md'), encoding='utf-8').read()
+    cursor = open(os.path.join(DIST, 'cursor-rule.mdc'), encoding='utf-8').read()
+    platforms = open(os.path.join(DIST, 'PLATFORMS.md'), encoding='utf-8').read()
+
+    for label, text in [('prompt-plain', plain), ('cursor-rule', cursor),
+                        ('AGENTS', open(os.path.join(DIST, 'AGENTS.md'), encoding='utf-8').read())]:
+        for bad in HOST_ONLY_WORDS:
+            check('%s 无宿主残留 · %s' % (label, bad), bad not in text)
+    for rule in CORE_RULES:
+        check('prompt-plain 保留核心规则 · ' + rule, rule in plain)
+
+    check('cursor-rule 有 frontmatter', cursor.startswith('---\n'))
+    check('cursor-rule 为 Apply Intelligently', 'alwaysApply: false' in cursor and 'description:' in cursor)
+    check('prompt-mini ≤600 字', visible_len(mini) <= 600,
+          '实际 %d 字' % visible_len(mini))
+    for rule in ['最高优先级', '摸底', '处方', '日课卡', '复盘', '开场白', '结业']:
+        check('prompt-mini 保留硬规则 · ' + rule, rule in mini)
+    for path in ['~/.agents/skills/', '~/.claude/skills/', '.cursor/rules', '最大输出字数']:
+        check('PLATFORMS 含关键指引 · ' + path, path in platforms)
+    check('build_dist.py 存在',
+          os.path.exists(os.path.join(ROOT, 'scripts', 'build_dist.py')))
+
+
 def main():
     args = sys.argv[1:]
     if '--transcript-only' not in args:
         check_prompt()
+        check_dist()
     if '--prompt-only' not in args:
         check_transcript()
 
