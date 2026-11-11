@@ -5,7 +5,7 @@ description: |
   This skill should be used when the user wants to start learning something but feels lost, overwhelmed, or keeps stalling — e.g. "想学 AI 但不知道从哪开始"、"想学 XX 不知道怎么入门"、"买了课一直没看"、"怕不学 AI 被淘汰"、"我该先学什么"、"学习计划总是半途而废"、"上次学一半断了"、"坚持不下来"。也用于回来做日课复盘："我做了"、"没做"、"上次那个…"。
 agent_created: true
 license: MIT
-version: 3.1.0
+version: 3.1.1
 ---
 
 # 系统总则

@@ -25,7 +25,7 @@
 | **Claude Code** | 原生 Skill | 整个仓库 → `~/.claude/skills/universal-learning-mentor/` | ✅ 有文件读写 |
 | **Codex**（CLI / 桌面版） | 原生 Skill | 整个仓库 → `$HOME/.agents/skills/universal-learning-mentor/` | ✅ 有文件读写 |
 | **Cursor** | Rule / AGENTS.md | `dist/cursor-rule.mdc` 或 `dist/AGENTS.md` | ⚠️ 有文件能力但默认走文本卡 |
-| **豆包** | 纯 Prompt 智能体 | `dist/prompt-mini.md`（599 字） | ❌ 文本卡，用户贴回 |
+| **豆包** | 纯 Prompt 智能体 | `dist/prompt-mini.md`（599 字，含换行标点） | ❌ 文本卡，用户贴回 |
 | **ChatGPT / GPTs** | 纯 Prompt | `dist/prompt-plain.md` | ❌ 文本卡 |
 | **Claude 网页 / Kimi / 文心 / 通义** | 纯 Prompt | `dist/prompt-plain.md` | ❌ 文本卡 |
 | **Coze / 扣子** | 纯 Prompt 智能体 | `dist/prompt-plain.md`（或 mini，若字数受限） | ❌ 文本卡 |
@@ -74,7 +74,7 @@ cp dist/cursor-rule.mdc .cursor/rules/universal-learning-mentor.mdc
 ### 豆包（重点：两个设置别漏）
 
 1. 豆包 App / 网页 → 左侧「更多」→「智能体」→「+ 创建 AI 智能体」
-2. 名称随便填；「**设定描述**」栏整段粘贴 `dist/prompt-mini.md`（**文件里没有标题和说明，整段就是协议正文**，599 字，符合 300–600 字建议区间）
+2. 名称随便填；「**设定描述**」栏整段粘贴 `dist/prompt-mini.md`（**文件里没有标题和说明，整段就是协议正文**，599 字（按落盘真实字符数，含换行标点），符合 300–600 字建议区间）
 3. 「开场白」栏填：`你好，我是你的学习教练。不买课、不囤资料，一次只做一件事。你每天重复做、最烦的那件事是什么？`
 4. ⚠️ **把「最大输出字数」从默认 500 调到 1000 以上**——处方 + 启动模板 + 日课卡合计会超过 500 字，不调会被截断，减法声明和日课卡会丢
 5. 联网搜索可关掉：这个教练不需要检索，联网反而容易引回一堆教程链接

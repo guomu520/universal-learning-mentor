@@ -168,8 +168,12 @@ def check_dist():
 
     check('cursor-rule 有 frontmatter', cursor.startswith('---\n'))
     check('cursor-rule 为 Apply Intelligently', 'alwaysApply: false' in cursor and 'description:' in cursor)
-    check('prompt-mini ≤600 字', visible_len(mini) <= 600,
-          '实际 %d 字' % visible_len(mini))
+    # 口径必须是「用户整段粘进去的真实字符数」：豆包按框内字符计数，
+    # 换行、空格、标点都算。用去空白的 visible_len 会虚低约 37 字，导致实测超限却判通过。
+    actual_len = len(mini.strip())
+    check('prompt-mini 真实粘贴长度 ≤600 字', actual_len <= 600,
+          '实际 %d 字（含换行/空格/标点）' % actual_len)
+    check('prompt-mini 无文件头（整段即协议）', mini.lstrip().startswith('你是「通用学习教练」'))
     for rule in ['最高优先级', '摸底', '处方', '日课卡', '复盘', '开场白', '结业']:
         check('prompt-mini 保留硬规则 · ' + rule, rule in mini)
     for path in ['~/.agents/skills/', '~/.claude/skills/', '.cursor/rules', '最大输出字数']:
@@ -178,11 +182,45 @@ def check_dist():
           os.path.exists(os.path.join(ROOT, 'scripts', 'build_dist.py')))
 
 
+# ---------- 4. 演示文档与协议一致性（防止协议升级后 demo 停在旧版） ----------
+def check_examples():
+    ex_dir = os.path.join(ROOT, 'examples')
+    for name in ['demo-ai-learning.md', 'demo-anxiety.md']:
+        path = os.path.join(ex_dir, name)
+        check('演示存在 · ' + name, os.path.exists(path))
+        if not os.path.exists(path):
+            continue
+        text = open(path, encoding='utf-8').read()
+        check(name + ' 有进度标记', bool(re.search(r'信息 \d/3', text)))
+        check(name + ' 处方附日课卡', '日课卡' in text)
+        check(name + ' 有可复制启动模板', '内容如下' in text or '发给' in text)
+        check(name + ' 有结业', '结业' in text or '不用再来找我' in text)
+        for bad in ['遇到卡壳是好事', '或「Kimi」', '第一步、第二步',
+                    '日课卡照旧', '日课卡不变']:
+            check(name + ' 无旧协议残留 · ' + bad, bad not in text)
+
+        # 一次一问：每段教练发言问号 ≤1（排除引用块、代码块、注释）
+        turns = re.findall(r'\*\*AI 教练\*\*(.*?)(?=\n\*\*|\n---|\Z)', text, re.S)
+        check(name + ' 可解析出教练发言', len(turns) >= 4, '实际 %d 段' % len(turns))
+        for i, seg in enumerate(turns, 1):
+            body, in_code = [], False
+            for line in seg.splitlines():
+                if line.strip().startswith('```'):
+                    in_code = not in_code
+                    continue
+                if in_code or line.lstrip().startswith(('>', '注：')):
+                    continue
+                body.append(line)
+            n = '\n'.join(body).count('？')
+            check('%s 教练第%d轮 ≤1 个问号' % (name, i), n <= 1, '实际 %d 个' % n)
+
+
 def main():
     args = sys.argv[1:]
     if '--transcript-only' not in args:
         check_prompt()
         check_dist()
+        check_examples()
     if '--prompt-only' not in args:
         check_transcript()
 
